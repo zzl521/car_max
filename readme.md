@@ -19,6 +19,8 @@ S -->|mjpeg视频流|B
 
 ## 运行服务端
 
+根据自己需要选择以下任意方式运行服务端
+
 * 下载 [windows服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/d7a907332f17fecfe051b7174a1f2e7c/SimpleVideoSever_win.7z)
 
   解压之后，进入对应目录点击run.bat文件启动服务器。
