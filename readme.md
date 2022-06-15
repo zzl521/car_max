@@ -13,7 +13,7 @@ B(浏览器)
 S -->|mjpeg视频流|B
 ```
 
-
+本项目提供了，服务端代码与esp32cam的代码。
 
 
 
@@ -67,13 +67,15 @@ stream.port=8004
 
 * <span style="color:#f00">本代码未考虑安全场景，无鉴权，也无加密。无论是抓包还是发起访问都是毫无阻挡。若需要在公网使用，请自行设计安全机制。</span>
 
-* src目录为服务端java源代码
+* **src目录为服务端java源代码**
 
   没有其他需要可以下载上面的发型版本，已包含64位jre17，也可以使用自定义jre17运行。
 
   代码理论上java8也可以编译，若有需要可以自行编译。
 
-* simpleVideoRecorder目录为esp32cam的代码
+  
+
+* **simpleVideoRecorder目录为esp32cam的代码**
 
   使用platformio基于ardunio框架开发。
 
