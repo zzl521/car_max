@@ -6,7 +6,7 @@ camServer 的demo使用esp32cam自己提供http服务和视频流，会有较大
 
 ```mermaid
 graph LR
-e(esp32)
+e(esp32cam)
 S(SimpleVideoServer)
 e -->|帧|S
 B(浏览器)
@@ -27,7 +27,7 @@ S -->|mjpeg视频流|B
 
 * 下载[linux服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/3e09fac66816c19f221f61b4296c0670/SimpleVideoSever_linux.7z)
 
-  需要安装 pzip或者7zip。否则会提示7z找不到。也可以自行解压后上传。注意jre的bin目录的执行权限
+  需要安装 p7zip或者7zip。否则会提示7z找不到。也可以自行解压后上传。注意jre的bin目录的执行权限
 
   运行
 
