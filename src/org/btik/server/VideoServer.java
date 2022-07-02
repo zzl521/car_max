@@ -1,5 +1,8 @@
 package org.btik.server;
 
+import org.btik.server.video.device.FrameBuffer;
+import org.btik.server.video.device.FrameReceiver;
+
 /**
  *视频服务
  */
@@ -10,7 +13,7 @@ public interface VideoServer {
      *
      * @param frame 一帧jpeg
      */
-    void sendFrame(byte[] frame);
+    void sendFrame(FrameBuffer buffer);
 
 
 

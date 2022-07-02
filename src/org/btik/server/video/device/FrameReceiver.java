@@ -23,32 +23,42 @@ public class FrameReceiver extends Thread {
 
     private final FrameSplit frameSplit = new FrameSplit();
 
+    private final FrameBuffer frameBuffer = new FrameBuffer();
+
+    /**
+     * 单个摄像头socket 接收图片缓冲区大小
+     */
+    private static final int RECEIVE_BUFFER_SIZE = 40960;
+
+    private byte[] preFrameBuffer = new byte[RECEIVE_BUFFER_SIZE];
 
     public FrameReceiver(VideoServer videoServer, Socket socket) throws IOException {
         this.videoServer = videoServer;
         this.socket = socket;
         this.in = socket.getInputStream();
         SocketAddress remoteSocketAddress = socket.getRemoteSocketAddress();
+        socket.setReceiveBufferSize(RECEIVE_BUFFER_SIZE);
         setName("frameReceiver" + remoteSocketAddress);
         frameSplit.start();
 
     }
 
 
-    private final FrameBuffer frameBuffer = new FrameBuffer();
-
     @Override
     public void run() {
+
         while (runFlag) {
             try {
                 int available = in.available();
                 if (available > 0) {
-                    byte[] buffer = new byte[available];
-                    int read = in.read(buffer);
+                    if (available > preFrameBuffer.length) {
+                        preFrameBuffer = new byte[available];
+                    }
+                    int read = in.read(preFrameBuffer);
                     if (read == -1) {
                         shutDown("eof");
                     }
-                    frameBuffer.write(buffer, 0, read);
+                    frameBuffer.write(preFrameBuffer, 0, read);
                 } else {
                     synchronized (in) {
                         in.wait(10);
@@ -70,7 +80,7 @@ public class FrameReceiver extends Thread {
 
 
     public void shutDown(String msg) {
-        System.err.println("wait by break");
+        System.err.println("shutdown on:" + msg);
         runFlag = false;
         synchronized (frameBuffer) {
             frameBuffer.notify();
@@ -94,7 +104,7 @@ public class FrameReceiver extends Thread {
             while (runFlag) {
                 synchronized (frameBuffer) {
                     if (frameBuffer.hasFrame()) {
-                        videoServer.sendFrame(frameBuffer.takeFrame());
+                        videoServer.sendFrame(frameBuffer);
                     } else {
                         try {
                             frameBuffer.wait();

@@ -1,7 +1,8 @@
 package org.btik.server.video.device;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * 视频帧缓冲区
@@ -19,6 +20,8 @@ public class FrameBuffer extends ByteArrayOutputStream {
 
     private static final byte endLast = end[END_TOP_INDEX];
     private int checkIndex = END_TOP_INDEX;
+
+    private int frameLength;
 
     @Override
     public void write(byte[] b, int off, int len) {
@@ -43,6 +46,7 @@ public class FrameBuffer extends ByteArrayOutputStream {
                         continue searchEndChar;
                     }
                 }
+                frameLength = checkIndex - END_TOP_INDEX;
                 return true;
             }
         }
@@ -52,13 +56,16 @@ public class FrameBuffer extends ByteArrayOutputStream {
     /**
      * 此处不加锁，但必须在锁对象为this情况下调用
      */
-    byte[] takeFrame() {
-        int newLength = checkIndex - END_TOP_INDEX;
-        byte[] bytes = Arrays.copyOf(buf, newLength);
+
+    public void takeFrame(OutputStream outputStream) throws IOException {
+        outputStream.write(buf, 0, frameLength);
         int nextIndex = checkIndex + 1;
         count -= nextIndex;
         System.arraycopy(buf, nextIndex, buf, 0, count);
         checkIndex = END_TOP_INDEX;
-        return bytes;
+    }
+
+    public int frameLen(){
+        return frameLength;
     }
 }

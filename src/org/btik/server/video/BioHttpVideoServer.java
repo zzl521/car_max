@@ -2,6 +2,7 @@ package org.btik.server.video;
 
 import org.btik.server.VideoServer;
 import org.btik.server.util.ByteUtil;
+import org.btik.server.video.device.FrameBuffer;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -131,6 +132,15 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
 
     }
 
+    void sendChunk(FrameBuffer buffer, OutputStream out) throws IOException {
+        int length = buffer.frameLen();
+        out.write(NEW_LINE);
+        out.write(ByteUtil.toHexString(length));
+        out.write(NEW_LINE);
+        buffer.takeFrame(out);
+
+    }
+
     void sendChunk(OutputStream out, byte[]... chunk) throws IOException {
         int length = 0;
         for (byte[] bytes : chunk) {
@@ -153,19 +163,15 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
     }
 
     @Override
-    public void sendFrame(byte[] frame) {
-        int length = frame.length;
-        if (frame[length - 1] == 0 && frame[length - 2] == 0) {
-            System.out.print("\rdrop frame:");
-            return;
-        }
+    public void sendFrame(FrameBuffer buffer) {
+        int length = buffer.frameLen();
         synchronized (clientLock) {
             for (Socket client : clients) {
                 try {
                     OutputStream outputStream = client.getOutputStream();
                     sendChunk(_STREAM_BOUNDARY, outputStream);
                     sendChunk(outputStream, _STREAM_PART, ByteUtil.toString(length), DOUBLE_LINE);
-                    sendChunk(frame, outputStream);
+                    sendChunk(buffer, outputStream);
                     outputStream.flush();
                 } catch (IOException e) {
                     checkState(client, e);

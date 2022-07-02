@@ -3,7 +3,7 @@ package org.btik.server.video.device;
 
 import org.btik.server.VideoServer;
 import org.btik.server.video.AsyncTaskExecutor;
-import org.btik.server.video.HttpConstant;
+
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 发送帧设备接入通道
  */
-public class BioDeviceChannel extends Thread implements HttpConstant {
+public class BioDeviceChannel extends Thread  {
 
 
     private boolean runFlag = true;
