@@ -1,16 +1,15 @@
 package org.btik.server.video;
 
+
 import org.btik.server.VideoServer;
 import org.btik.server.util.ByteUtil;
-import org.btik.server.video.device.FrameBuffer;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.*;
 import java.util.Arrays;
-import java.util.HashSet;
+import java.util.Enumeration;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -18,10 +17,8 @@ import java.util.concurrent.Executors;
  * 以http mjpeg 合成视频流对VideoServer的实现
  *
  * */
-public class BioHttpVideoServer extends Thread implements VideoServer, HttpConstant {
+public class BioHttpVideoServer extends Thread implements HttpConstant, VideoServer {
     private boolean runFlag = true;
-
-    private static final HashSet<Socket> clients = new HashSet<>();
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(3, r -> new Thread(r, "client" + System.currentTimeMillis()));
 
@@ -29,7 +26,7 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
 
     private int httpPort;
 
-    private final byte[] clientLock = new byte[0];
+    private final ConcurrentHashMap<String, MJPEGVideoChannel> videoChannelMap = new ConcurrentHashMap<>();
 
     public void setAsyncTaskExecutor(AsyncTaskExecutor asyncTaskExecutor) {
         this.asyncTaskExecutor = asyncTaskExecutor;
@@ -48,23 +45,30 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
     @Override
     public void run() {
         try (ServerSocket serverSocket = new ServerSocket(httpPort)) {
+            byte[] uri = new byte[URI_LEN];
+            //channel 是 /{sn} 的形式 目前为 12位字符
+            byte[] channel = new byte[13];
             while (runFlag) {
                 Socket client = serverSocket.accept();
                 InputStream inputStream = client.getInputStream();
                 client.setSoTimeout(300);
-                byte[] bytes = new byte[URI_LEN];
+
                 try {
-                    // 判断EOF
-                    if (inputStream.read(bytes) < 0) {
+                    if (inputStream.read(uri) < URI_LEN) {
                         asyncTaskExecutor.execute(() -> do404(client));
-                        return;
+                        continue;
                     }
                     // 判断uri
-                    if (!Arrays.equals(bytes, uri)) {
+                    if (!Arrays.equals(uri, HttpConstant.uri)) {
                         asyncTaskExecutor.execute(() -> do404(client));
-                        return;
+                        continue;
                     }
-                    executorService.submit(() -> doStreamOpen(client));
+                    if (inputStream.read(channel) < channel.length) {
+                        asyncTaskExecutor.execute(() -> do404(client));
+                        continue;
+                    }
+                    String channelStr = new String(channel);
+                    executorService.submit(() -> doStreamOpen(client, channelStr));
                 } catch (IOException e) {
                     disConnect(client, e);
                 }
@@ -76,14 +80,16 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
 
     }
 
-    private void doStreamOpen(Socket client) {
+    private void doStreamOpen(Socket client, String channel) {
         try {
-            System.out.println("open:" + client.getRemoteSocketAddress());
-            OutputStream outputStream = client.getOutputStream();
-            outputStream.write(STREAM_RESP_HEAD_BYTES);
-            outputStream.flush();
-            client.setTcpNoDelay(true);
-            clients.add(client);
+            MJPEGVideoChannel videoChannel = videoChannelMap.get(channel);
+            if (null == videoChannel) {
+                // 频道不存在，主播还未开启直播间
+                System.err.println("channel not exists");
+                do404(client);
+                return;
+            }
+            videoChannel.joinChannel(client);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -104,9 +110,6 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
     void disConnect(Socket socket, Exception e) {
         asyncTaskExecutor.execute(() -> {
             System.err.println(e.getMessage());
-            synchronized (clientLock) {
-                clients.remove(socket);
-            }
             try {
                 System.err.println("close:" + socket.getRemoteSocketAddress());
                 socket.close();
@@ -117,67 +120,42 @@ public class BioHttpVideoServer extends Thread implements VideoServer, HttpConst
 
     }
 
-    private void checkState(Socket socket, Exception e) {
-        if (socket.isClosed()) {
-            disConnect(socket, e);
-        }
-    }
-
-    void sendChunk(byte[] chunk, OutputStream out) throws IOException {
-        int length = chunk.length;
-        out.write(NEW_LINE);
-        out.write(ByteUtil.toHexString(length));
-        out.write(NEW_LINE);
-        out.write(chunk);
-
-    }
-
-    void sendChunk(FrameBuffer buffer, OutputStream out) throws IOException {
-        int length = buffer.frameLen();
-        out.write(NEW_LINE);
-        out.write(ByteUtil.toHexString(length));
-        out.write(NEW_LINE);
-        buffer.takeFrame(out);
-
-    }
-
-    void sendChunk(OutputStream out, byte[]... chunk) throws IOException {
-        int length = 0;
-        for (byte[] bytes : chunk) {
-            length += bytes.length;
-        }
-
-        out.write(NEW_LINE);
-        out.write(ByteUtil.toHexString(length));
-        out.write(NEW_LINE);
-        for (byte[] bytes : chunk) {
-            out.write(bytes);
-        }
-
-    }
-
 
     public void shutDown(String msg) {
         System.err.println("exit: " + msg);
         runFlag = false;
     }
 
-    @Override
-    public void sendFrame(FrameBuffer buffer) {
-        int length = buffer.frameLen();
-        synchronized (clientLock) {
-            for (Socket client : clients) {
-                try {
-                    OutputStream outputStream = client.getOutputStream();
-                    sendChunk(_STREAM_BOUNDARY, outputStream);
-                    sendChunk(outputStream, _STREAM_PART, ByteUtil.toString(length), DOUBLE_LINE);
-                    sendChunk(buffer, outputStream);
-                    outputStream.flush();
-                } catch (IOException e) {
-                    checkState(client, e);
-                }
 
+    @Override
+    public VideoChannel createChannel(byte[] channelId) {
+        channelId[0] = HTTP_PATH_SEPARATOR;
+        String channelIdPath = new String(channelId);
+        System.out.println("new channel:");
+        printHttpAddress(channelIdPath);
+        return videoChannelMap.computeIfAbsent(channelIdPath,
+                channelIdStr -> new MJPEGVideoChannel(channelIdStr, asyncTaskExecutor));
+    }
+
+    private void printHttpAddress(String channelIdPath) {
+        try {
+
+            String channelHttpAddress = "http://%s:" + httpPort + "/video" + channelIdPath + "\r\n";
+            Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            while (networkInterfaces.hasMoreElements()) {
+                NetworkInterface networkInterface = networkInterfaces.nextElement();
+                Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+                while (inetAddresses.hasMoreElements()) {
+                    InetAddress obj = inetAddresses.nextElement();
+                    if (!(obj instanceof Inet4Address)) {
+                        continue;
+                    }
+                    System.out.printf(channelHttpAddress, ByteUtil.ipv42Str(obj.getAddress()));
+                }
             }
+
+        } catch (SocketException e) {
+            e.printStackTrace();
         }
     }
 }

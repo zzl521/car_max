@@ -3,9 +3,11 @@ package org.btik.server.video.device;
 
 import org.btik.server.VideoServer;
 import org.btik.server.video.AsyncTaskExecutor;
+import org.btik.server.video.VideoChannel;
 
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Collections;
@@ -16,9 +18,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 发送帧设备接入通道
  */
-public class BioDeviceChannel extends Thread  {
+public class BioDeviceChannel extends Thread {
 
-
+    private static final int SN_LEN = 12;
     private boolean runFlag = true;
 
     private final byte[] countLock = new byte[0];
@@ -97,7 +99,14 @@ public class BioDeviceChannel extends Thread  {
 
     private void onNewStreamOpen(Socket socket) {
         try {
-            FrameReceiver frameReceiver = new FrameReceiver(videoServer, socket);
+            byte[] sn = new byte[SN_LEN + 1];
+            InputStream inputStream = socket.getInputStream();
+            int len = inputStream.read(sn, 1, SN_LEN);
+            if (len < SN_LEN) {
+                close(socket);
+            }
+            VideoChannel channel = videoServer.createChannel(sn);
+            FrameReceiver frameReceiver = new FrameReceiver(channel, socket);
             receiverMap.put(socket, frameReceiver);
             frameReceiver.start();
             clients.add(socket);

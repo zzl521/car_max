@@ -1,20 +1,15 @@
 package org.btik.server;
 
-import org.btik.server.video.device.FrameBuffer;
-import org.btik.server.video.device.FrameReceiver;
+
+import org.btik.server.video.VideoChannel;
 
 /**
- *视频服务
+ * 视频服务
  */
 public interface VideoServer {
 
     /**
-     * 字节数组发送给不同客户端
-     *
-     * @param frame 一帧jpeg
+     * @param channelId 通道号
      */
-    void sendFrame(FrameBuffer buffer);
-
-
-
+    VideoChannel createChannel(byte[] channelId);
 }

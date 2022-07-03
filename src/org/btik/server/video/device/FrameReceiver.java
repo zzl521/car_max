@@ -2,6 +2,7 @@ package org.btik.server.video.device;
 
 
 import org.btik.server.VideoServer;
+import org.btik.server.video.VideoChannel;
 
 
 import java.io.IOException;
@@ -15,7 +16,7 @@ import java.net.SocketAddress;
 public class FrameReceiver extends Thread {
     private volatile boolean runFlag = true;
 
-    private final VideoServer videoServer;
+    private final VideoChannel videoChannel;
 
     private final Socket socket;
 
@@ -32,8 +33,8 @@ public class FrameReceiver extends Thread {
 
     private byte[] preFrameBuffer = new byte[RECEIVE_BUFFER_SIZE];
 
-    public FrameReceiver(VideoServer videoServer, Socket socket) throws IOException {
-        this.videoServer = videoServer;
+    public FrameReceiver(VideoChannel videoChannel, Socket socket) throws IOException {
+        this.videoChannel = videoChannel;
         this.socket = socket;
         this.in = socket.getInputStream();
         SocketAddress remoteSocketAddress = socket.getRemoteSocketAddress();
@@ -104,7 +105,8 @@ public class FrameReceiver extends Thread {
             while (runFlag) {
                 synchronized (frameBuffer) {
                     if (frameBuffer.hasFrame()) {
-                        videoServer.sendFrame(frameBuffer);
+                        frameBuffer.takeFrame(videoChannel);
+                        frameBuffer.slide();
                     } else {
                         try {
                             frameBuffer.wait();

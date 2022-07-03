@@ -3,7 +3,7 @@ package org.btik.server.util;
 /**
  * @author lustre
  * @version 1.0
- * @since  2021/5/15 12:37
+ * @since 2021/5/15 12:37
  * 字节工具
  */
 public class ByteUtil {
@@ -204,6 +204,24 @@ public class ByteUtil {
             result |= (ip[i] & 0xff) << ((3 - i) * 8);
         }
         return result;
+    }
+
+    /**
+     * ipv4 to String
+     *
+     * @param ip 不能为空，不能为0长
+     * @throws IndexOutOfBoundsException 当为0长时
+     * @throws NullPointerException      当为null时
+     */
+    public static String ipv42Str(byte[] ip) {
+        StringBuilder ipStr = new StringBuilder();
+        int top = ip.length - 1;
+        for (int i = 0; i < top; i++) {
+            ipStr.append(0xff & ip[i])
+                    .append('.');
+        }
+        ipStr.append(ip[top] & 0xff);
+        return ipStr.toString();
     }
 
 

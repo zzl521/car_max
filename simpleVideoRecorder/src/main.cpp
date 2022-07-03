@@ -81,6 +81,15 @@ void setup() {
         Serial.println("connect stream channel failed");
     }
     streamSender.setNoDelay(true);
+    // 发送mac地址作为设备序列号，用于摄像头频道号
+    uint8_t mac[6];
+    WiFi.macAddress(mac);
+    char macStr[12] = {0};
+    sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3],
+            mac[4], mac[5]);
+    Serial.println("sprint mac ");
+    streamSender.print(String(macStr));
+    streamSender.flush();
 }
 
 void loop() {

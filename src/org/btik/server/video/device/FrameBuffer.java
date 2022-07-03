@@ -1,11 +1,12 @@
 package org.btik.server.video.device;
 
+import org.btik.server.VideoServer;
+import org.btik.server.video.VideoChannel;
+
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
 
 /**
- * 视频帧缓冲区
+ * 视频帧缓冲区,拆出帧时后发送帧时不复制到新的buffer，因而只能同步发送帧，适合少数客户端观看视频
  */
 public class FrameBuffer extends ByteArrayOutputStream {
 
@@ -20,8 +21,6 @@ public class FrameBuffer extends ByteArrayOutputStream {
 
     private static final byte endLast = end[END_TOP_INDEX];
     private int checkIndex = END_TOP_INDEX;
-
-    private int frameLength;
 
     @Override
     public void write(byte[] b, int off, int len) {
@@ -46,7 +45,6 @@ public class FrameBuffer extends ByteArrayOutputStream {
                         continue searchEndChar;
                     }
                 }
-                frameLength = checkIndex - END_TOP_INDEX;
                 return true;
             }
         }
@@ -54,18 +52,20 @@ public class FrameBuffer extends ByteArrayOutputStream {
     }
 
     /**
-     * 此处不加锁，但必须在锁对象为this情况下调用
+     * 滑动下一条消息到头部
      */
-
-    public void takeFrame(OutputStream outputStream) throws IOException {
-        outputStream.write(buf, 0, frameLength);
+    void slide() {
         int nextIndex = checkIndex + 1;
         count -= nextIndex;
         System.arraycopy(buf, nextIndex, buf, 0, count);
         checkIndex = END_TOP_INDEX;
     }
 
-    public int frameLen(){
-        return frameLength;
+    /**
+     * 此处不加锁，但必须在锁对象为this情况下调用
+     */
+
+    public void takeFrame(VideoChannel videoChannel) {
+        videoChannel.sendFrame(buf, checkIndex - END_TOP_INDEX);
     }
 }
