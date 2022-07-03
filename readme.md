@@ -1,7 +1,6 @@
 # SimpleVideoServer
 
-camServer 的demo使用esp32cam自己提供http服务和视频流，会有较大性能开销。而且需要内网穿透才能外网访问。
-现在提供服务端合成视频流的方式，esp32cam只需要不停拍照发送给服务端，服务端处理浏览器查看视频的请求，合成视频流给浏览器。
+camServer 的demo使用esp32cam自己提供http服务和视频流，会有较大性能开销。而且需要内网穿透才能外网访问。本项目提供服务端合成视频流的方式，esp32cam只需要不停拍照发送给服务端，服务端处理浏览器查看视频的请求，合成视频流给浏览器。
 我们可以把服务端程序部署在公网，可以通过这样的方式远程访问。
 
 ```mermaid
@@ -15,31 +14,104 @@ S -->|mjpeg视频流|B
 
 本项目提供了，服务端代码与esp32cam的代码。
 
-使用现在提供的服务端发行版，请使用旧版代码，可参考https://blog.csdn.net/qq_26700087/article/details/125435597?spm=1001.2014.3001.5501。如果自行编译服务端则无需考虑。
-
 
 
 ## 运行服务端
 
 根据自己需要选择以下任意方式运行服务端
 
-* 下载 [windows服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/d7a907332f17fecfe051b7174a1f2e7c/SimpleVideoSever_win.7z)
+* 下载 [windows服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/92abc011e3048b9401a204b4255c0a56/SimpleVideoSever_win.zip)
 
   解压之后，进入对应目录点击run.bat文件启动服务器。
 
-* 下载[linux服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/3e09fac66816c19f221f61b4296c0670/SimpleVideoSever_linux.7z)
+* 下载[linux服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/f6b8ffccef4cd8f271c0667a22c53fc3/SimpleVideoSever_linux.zip)
 
-  需要安装 p7zip或者7zip。否则会提示7z找不到。也可以自行解压后上传。注意jre的bin目录的执行权限
+  需要unzip或p7z等可以解压zip的应用
 
   运行
 
   ```shell
-  7z x SimpleVideoSever_linux.7z
+  unzip SimpleVideoSever_linux.zip
   cd linux_release/
   sh run.sh
   ```
 
 * 发行版内部仅仅是一些java17 版本的class文件和jre以及启动脚本，你可以使用任意其它的jre17运行这些class文件。并非需要发行版。
+
+* 访问视频服务
+
+  新增了频道功能，也就是说每个摄像头处在不同频道，访问不同的摄像头需要不同的地址。
+
+  
+
+  如鄙人执行的服务端日志打印含有esp32Cam接入的后的相关打印如下：
+
+  ```
+  D:\Users\immor\idea\SimpleVideoServer\out\win_release>.\jre\bin\java -classpath SimpleVideoServer org.btik.server.video.Main
+  bio video server started
+  bio Device Channel started
+  new channel:
+  http://127.0.0.1:8003/video/441793EE3C08
+  http://192.168.0.116:8003/video/441793EE3C08
+  http://192.168.137.1:8003/video/441793EE3C08
+  start /192.168.137.234:53051
+  
+  
+  ```
+
+  每接入一个esp32Cam会新建一个频道，在`new channel:`的打印后会出现，相关可以访问视频流的地址。
+
+  你可以在本机，或者局域网的其他设备访问。
+
+  部署在云服务器的同学把端口打开后，把内网ip替换成公网ip，或者域名即可。
+
+  
+
+* 关于如何把视频节目嵌入其它网页
+
+  如果你擅长web开发，或者不喜欢在多个窗口查看多个摄像头可以参考以下方法增加自己的内容。
+
+  
+
+  本视频流是允许跨域的，若希望在自己的网页里面加入本服务端提供esp32Cam视频窗口，
+
+  其实不用html的 `iframe`标签，`img`标签即可。
+
+  比如以下html代码，新建一个文件比如`a.html` 复制以下内容，根据实际情况，替换`img`标签`src`属性的内容。
+
+  ```html
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>直播间</title>
+      <style>
+          .videoContainer{
+              display: inline-block;
+          }
+      </style>
+  </head>
+  <body>
+  <div style="padding: 0;margin:30px auto; width: 1300px">
+      <div class="videoContainer">
+          <img src="http://127.0.0.1:8003/video/441793EE3C08">
+      </div>
+      <div class="videoContainer">
+          <img src="http://127.0.0.1:8003/video/58BF2581F024">
+      </div>
+  </div>
+  
+  </body>
+  </html>
+  ```
+
+  以上是我的两个esp32Cam的视野，效果如下：
+
+  ![esp32Cam doublevideo](https://img-blog.csdnimg.cn/ca9e5e19fa5742b8a7c698845078e0ab.gif#pic_center)
+
+  也就是说，你可以把该项目植入任何其它可以用到web前端的项目。通过查询在线设备，可以动态打开每个摄像头的视频。
+
+  
 
 ## 配置项
 
@@ -55,13 +127,7 @@ stream.port=8004
 
 **http.port** 为http的端口。
 
-查看视频访问 http://ip:该端口/video。改成80则无需在url中声明端口。
-
-充当服务端的pc访问 http://127.0.0.1:8003/video 是比较方便的一种办法。
-
-
-
-**http.clients.limit** http客户端限制数，可以多个客户端同时查看同一视频，类似直播。增加多客户端增加服务端负担。
+**http.clients.limit** 摄像头在线接入限制数。本意是想限制客户端参与的数量故名为http.clients.limit，实际的实现是限制了摄像头的数量
 
 **stream.port** esp32cam像服务端发送照片的端口，在本项目中使用该默认端口，如果需要修改，一并修改esp32cam代码中连接的端口。一般无需修改。
 
