@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.HashMap;
 import java.util.concurrent.*;
 
 
@@ -170,17 +169,23 @@ public class UDPDeviceChannel extends Thread {
             try {
                 while (runFlag) {
                     FrameBuffer frame = messages.take();
-                    byte[] data = frame.data;
-                    int length = data.length;
-                    if (length == SN_LEN) {
-                        asyncTaskExecutor.execute(() -> onNewStreamOpen(frame));
-                        continue;
+                    try {
+                        byte[] data = frame.data;
+                        int length = data.length;
+                        if (length == SN_LEN) {
+                            asyncTaskExecutor.execute(() -> onNewStreamOpen(frame));
+                            continue;
+                        }
+                        long address = frame.address;
+                        VideoChannel channel = videoChannelMap.get(address);
+                        if (channel != null) {
+                            channel.sendFrame(data, length);
+                        }
+                    } finally {
+                        // 归还到池里
+                        frameBufferPool.add(frame);
                     }
-                    long address = frame.address;
-                    VideoChannel channel = videoChannelMap.get(address);
-                    if (channel != null) {
-                        channel.sendFrame(data, length);
-                    }
+
                 }
             } catch (InterruptedException e) {
                 System.out.println("exit by:" + e);
