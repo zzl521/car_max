@@ -62,7 +62,7 @@ public class BioHttpVideoServer extends Thread implements HttpConstant, VideoSer
             while (runFlag) {
                 Socket client = serverSocket.accept();
                 InputStream inputStream = client.getInputStream();
-                client.setSoTimeout(300);
+                client.setSoTimeout(3000);
 
                 try {
                     if (inputStream.read(uri) < URI_LEN) {

@@ -121,29 +121,6 @@ public class NewUDPDeviceChannel extends Thread implements DevChannel {
         return SN_LEN;
     }
 
-
-    static class UDPDev {
-        byte[] frame;
-
-        int[] sizeTable;
-        VideoChannel videoChannel;
-
-        BufferPool bufferPool;
-        long address;
-
-        int segmentIndex = 0;
-
-        public UDPDev(byte[] frame, VideoChannel videoChannel, BufferPool bufferPool, long address) {
-            this.frame = frame;
-            this.sizeTable = new int[frame.length];
-            this.videoChannel = videoChannel;
-            this.address = address;
-            this.bufferPool = bufferPool;
-        }
-
-
-    }
-
     class FrameDispatcher implements Runnable {
         LinkedBlockingQueue<FrameBuffer> messages = new LinkedBlockingQueue<>();
 
@@ -184,7 +161,7 @@ public class NewUDPDeviceChannel extends Thread implements DevChannel {
 
     private void onNewStreamOpen(FrameBuffer frame) {
         byte[] sn = new byte[SN_LEN + 1];
-        System.arraycopy(ByteUtil.toHexString(frame.address), 0, sn, 1, SN_LEN);
+        System.arraycopy(ByteUtil.toFullHexString(frame.address), 0, sn, 1, SN_LEN);
         VideoChannel channel = videoServer.createChannel(sn);
         videoChannelMap.put(frame.address, channel);
     }

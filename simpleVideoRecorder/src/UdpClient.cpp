@@ -64,6 +64,5 @@ void LightUDP::send(uint8_t* buf, size_t len) {
                       sizeof(recipient));
     if (sent < 0) {
         Serial.printf("could not send data: %d\n", errno);
-        return;
     }
 }

@@ -1,5 +1,7 @@
 package org.btik.server.util;
 
+import java.io.IOException;
+
 /**
  * @author lustre
  * @version 1.0
@@ -80,6 +82,18 @@ public class ByteUtil {
         byte[] buf = new byte[len];
 
         int charPos = len;
+        int mask = 0xf;
+        do {
+            buf[--charPos] = LOW_DIGEST[((int) val) & mask];
+            val >>>= 4;
+        } while (charPos > 0);
+
+        return buf;
+    }
+
+    public static byte[] toFullHexString(long val) {
+        byte[] buf = new byte[8 << 1];
+        int charPos = buf.length;
         int mask = 0xf;
         do {
             buf[--charPos] = LOW_DIGEST[((int) val) & mask];
