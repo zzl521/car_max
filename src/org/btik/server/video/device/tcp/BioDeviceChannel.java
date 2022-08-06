@@ -1,6 +1,7 @@
-package org.btik.server.video.device;
+package org.btik.server.video.device.tcp;
 
 
+import org.btik.server.DevChannel;
 import org.btik.server.VideoServer;
 import org.btik.server.video.AsyncTaskExecutor;
 import org.btik.server.video.VideoChannel;
@@ -18,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 发送帧设备接入通道
  */
-public class BioDeviceChannel extends Thread {
+public class BioDeviceChannel extends Thread implements DevChannel {
 
     private static final int SN_LEN = 12;
     private boolean runFlag = true;
@@ -135,5 +136,10 @@ public class BioDeviceChannel extends Thread {
 
     public void setVideoServer(VideoServer videoServer) {
         this.videoServer = videoServer;
+    }
+
+    @Override
+    public int channelIdLen() {
+        return SN_LEN;
     }
 }

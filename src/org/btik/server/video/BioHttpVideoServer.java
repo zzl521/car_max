@@ -1,6 +1,7 @@
 package org.btik.server.video;
 
 
+import org.btik.server.DevChannel;
 import org.btik.server.VideoServer;
 import org.btik.server.util.ByteUtil;
 
@@ -8,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.*;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -24,6 +26,8 @@ public class BioHttpVideoServer extends Thread implements HttpConstant, VideoSer
 
     private AsyncTaskExecutor asyncTaskExecutor;
 
+    private DevChannel devChannel;
+
     private int httpPort;
 
     private final ConcurrentHashMap<String, MJPEGVideoChannel> videoChannelMap = new ConcurrentHashMap<>();
@@ -34,6 +38,10 @@ public class BioHttpVideoServer extends Thread implements HttpConstant, VideoSer
 
     public void setHttpPort(int httpPort) {
         this.httpPort = httpPort;
+    }
+
+    public void setDevChannel(DevChannel devChannel) {
+        this.devChannel = devChannel;
     }
 
     @Override
@@ -47,7 +55,7 @@ public class BioHttpVideoServer extends Thread implements HttpConstant, VideoSer
         try (ServerSocket serverSocket = new ServerSocket(httpPort)) {
             byte[] uri = new byte[URI_LEN];
             //channel 是 /{sn} 的形式 目前为 12位字符
-            byte[] channel = new byte[13];
+            byte[] channel = new byte[devChannel.channelIdLen() + 1];
             while (runFlag) {
                 Socket client = serverSocket.accept();
                 InputStream inputStream = client.getInputStream();
@@ -68,6 +76,7 @@ public class BioHttpVideoServer extends Thread implements HttpConstant, VideoSer
                         continue;
                     }
                     String channelStr = new String(channel);
+                    System.out.println("pre open" + new Date());
                     executorService.submit(() -> doStreamOpen(client, channelStr));
                 } catch (IOException e) {
                     disConnect(client, e);

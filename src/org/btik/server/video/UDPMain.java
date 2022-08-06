@@ -1,6 +1,7 @@
 package org.btik.server.video;
 
-import org.btik.server.video.device.UDPDeviceChannel;
+import org.btik.server.video.device.udp.BufferPool;
+import org.btik.server.video.device.udp.UDPDeviceChannel;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,12 +25,12 @@ public class UDPMain {
      * @param key 配置key
      * @param def 获取为空时的默认值
      */
-    private static String getProp(String key, String def) {
+    private static int getIntProp(String key, int def) {
         Object o = properties.get(key);
         if (o == null) {
             return def;
         }
-        return String.valueOf(o);
+        return Integer.parseInt(o.toString());
     }
 
     public static void main(String[] args) {
@@ -37,18 +38,21 @@ public class UDPMain {
         asyncTaskExecutor.start();
 
         BioHttpVideoServer bioHttpVideoServer = new BioHttpVideoServer();
-        bioHttpVideoServer.setHttpPort(Integer.parseInt(
-                getProp("http.port", "8003")));
+        bioHttpVideoServer.setHttpPort(getIntProp("http.port", 8003));
         bioHttpVideoServer.setAsyncTaskExecutor(asyncTaskExecutor);
-        bioHttpVideoServer.start();
 
+        BufferPool bufferPool = new BufferPool();
+        bufferPool.setBufferPoolSize(getIntProp("udp.video.buffer.pool.size", 500));
         UDPDeviceChannel deviceChannel = new UDPDeviceChannel();
         deviceChannel.setAsyncTaskExecutor(asyncTaskExecutor);
         deviceChannel.setVideoServer(bioHttpVideoServer);
-        deviceChannel.setStreamPort(Integer.parseInt(
-                getProp("stream.port", "8004")));
-        deviceChannel.setBufferPoolSize(Integer.parseInt(getProp("udp.video.buffer.pool.size", "500")));
-        deviceChannel.setDispatcherPoolSize(Integer.parseInt(getProp("udp.video.dispatcher.thread.size", "8")));
+
+        deviceChannel.setBufferPool(bufferPool);
+        deviceChannel.setStreamPort(getIntProp("stream.port", 8004));
+        deviceChannel.setDispatcherPoolSize(getIntProp("udp.video.dispatcher.thread.size", 8));
         deviceChannel.start();
+
+        bioHttpVideoServer.setDevChannel(deviceChannel);
+        bioHttpVideoServer.start();
     }
 }

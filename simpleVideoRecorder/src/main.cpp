@@ -7,8 +7,10 @@
 char* ssid = "test0";
 const char* passwd = "12345687";
 const char* host = "192.168.137.1";
+const uint16_t serverUdpPort = 8004;
+const uint16_t localUdpPort = 2333;
 
-WiFiClient streamSender;
+WiFiUDP streamSender;
 
 void connectWifi(const char* ssid, const char* passphrase) {
     WiFi.mode(WIFI_STA);
@@ -77,10 +79,8 @@ void setup() {
 
     connectWifi(ssid, passwd);
     Serial.println("connect stream channel");
-    if (!streamSender.connect(host, 8004)) {
-        Serial.println("connect stream channel failed");
-    }
-    streamSender.setNoDelay(true);
+    streamSender.begin(WiFi.localIP(), localUdpPort);
+
     // 发送mac地址作为设备序列号，用于摄像头频道号
     uint8_t mac[6];
     WiFi.macAddress(mac);
@@ -88,15 +88,15 @@ void setup() {
     sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3],
             mac[4], mac[5]);
     Serial.println("sprint mac ");
+    streamSender.beginPacket(host, serverUdpPort);
     streamSender.print(String(macStr));
-    streamSender.flush();
+    streamSender.endPacket();
 }
 
 void loop() {
     camera_fb_t* fb = NULL;
     size_t len = 0;
     Serial.println("do loop");
-    uint8_t end[5] = {'j', 'p', 'e', 'g', '\n'};
     while (true) {
         fb = esp_camera_fb_get();
         if (!fb) {
@@ -104,9 +104,13 @@ void loop() {
             return;
         }
         len = fb->len;
+        streamSender.beginPacket(host, serverUdpPort);
         streamSender.write(fb->buf, len);
-        streamSender.write(end, 5);
-        streamSender.flush();
+        streamSender.endPacket();
+        // 这个库会自动将大于MTU的帧拆成多帧，而不是利用自动ip分片，
+        // 导致服务器端需要合并帧，此处发送空包标识结束
+        streamSender.beginPacket(host, serverUdpPort);
+        streamSender.endPacket();
         esp_camera_fb_return(fb);
     }
 }

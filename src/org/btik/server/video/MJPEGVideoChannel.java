@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -52,11 +53,36 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
         }
     }
 
+    static long l = System.currentTimeMillis();
+
+    @Override
+    public void sendFrame(byte[][] frame, int[] len, int segmentCount) {
+        int allLen = 0;
+        for (int i = 0; i < segmentCount; i++) {
+            allLen += len[i];
+        }
+        byte[] lenStrBytes = ByteUtil.toString(allLen);
+        synchronized (clientLock) {
+            for (Socket client : clients) {
+                try {
+                    OutputStream outputStream = client.getOutputStream();
+                    sendChunk(_STREAM_BOUNDARY, outputStream);
+                    sendChunk(outputStream, _STREAM_PART, lenStrBytes, DOUBLE_LINE);
+                    sendChunk(outputStream, allLen, len, frame);
+                    outputStream.flush();
+                } catch (IOException e) {
+                    checkState(client, e);
+                }
+
+            }
+        }
+    }
+
     /**
      * 加入频道
      */
     public void joinChannel(Socket client) throws IOException {
-        System.out.println("open:" + client.getRemoteSocketAddress());
+        System.out.println("open:" + client.getRemoteSocketAddress() + " " + new Date());
         OutputStream outputStream = client.getOutputStream();
         outputStream.write(STREAM_RESP_HEAD_BYTES);
         outputStream.flush();
@@ -98,6 +124,20 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
         out.write(NEW_LINE);
         for (byte[] bytes : chunk) {
             out.write(bytes);
+        }
+
+    }
+
+    void sendChunk(OutputStream out, int allLen, final int[] length, byte[][] chunk) throws IOException {
+        out.write(NEW_LINE);
+        out.write(ByteUtil.toHexString(allLen));
+        out.write(NEW_LINE);
+        for (int i = 0; i < length.length; i++) {
+            int len = length[i];
+            if (len == 0) {
+                break;
+            }
+            out.write(chunk[i], 0, len);
         }
 
     }

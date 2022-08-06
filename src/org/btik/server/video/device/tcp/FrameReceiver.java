@@ -1,8 +1,8 @@
-package org.btik.server.video.device;
+package org.btik.server.video.device.tcp;
 
 
-import org.btik.server.VideoServer;
 import org.btik.server.video.VideoChannel;
+import org.btik.server.video.device.tcp.FrameBuffer;
 
 
 import java.io.IOException;

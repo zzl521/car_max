@@ -1,6 +1,6 @@
 package org.btik.server.video;
 
-import org.btik.server.video.device.BioDeviceChannel;
+import org.btik.server.video.device.tcp.BioDeviceChannel;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -43,7 +43,6 @@ public class Main {
         bioHttpVideoServer.setHttpPort(Integer.parseInt(
                 getProp("http.port", "8003")));
         bioHttpVideoServer.setAsyncTaskExecutor(asyncTaskExecutor);
-        bioHttpVideoServer.start();
 
         BioDeviceChannel bioDeviceChannel = new BioDeviceChannel();
         bioDeviceChannel.setAsyncTaskExecutor(asyncTaskExecutor);
@@ -53,6 +52,9 @@ public class Main {
         bioDeviceChannel.setStreamPort(Integer.parseInt(
                 getProp("stream.port", "8004")));
         bioDeviceChannel.start();
+
+        bioHttpVideoServer.setDevChannel(bioDeviceChannel);
+        bioHttpVideoServer.start();
     }
 
 }
