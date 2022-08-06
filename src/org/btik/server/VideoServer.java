@@ -1,7 +1,7 @@
 package org.btik.server;
 
 
-import org.btik.server.video.VideoChannel;
+import org.btik.server.video.device.iface.VideoChannel;
 
 /**
  * 视频服务

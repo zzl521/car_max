@@ -1,4 +1,4 @@
-package org.btik.server.video;
+package org.btik.server.video.device.iface;
 
 public interface VideoChannel {
     /**

@@ -2,15 +2,16 @@
 #include <WiFi.h>
 #include "esp_camera.h"
 #define CAMERA_MODEL_AI_THINKER
+#include "UdpClient.hpp"
 #include "ai_thinker_esp32_cam_meta.h"
 
-char* ssid = "test0";
+const char* ssid = "test0";
 const char* passwd = "12345687";
 const char* host = "192.168.137.1";
 const uint16_t serverUdpPort = 8004;
 const uint16_t localUdpPort = 2333;
 
-WiFiUDP streamSender;
+LightUDP streamSender;
 
 void connectWifi(const char* ssid, const char* passphrase) {
     WiFi.mode(WIFI_STA);
@@ -75,28 +76,18 @@ void setup() {
     Serial.println("get sensor ");
     sensor_t* s = esp_camera_sensor_get();
     // drop down frame size for higher initial frame rate
-    s->set_framesize(s, FRAMESIZE_VGA);
+    s->set_framesize(s, FRAMESIZE_SVGA);
 
     connectWifi(ssid, passwd);
-    Serial.println("connect stream channel");
     streamSender.begin(WiFi.localIP(), localUdpPort);
-
-    // 发送mac地址作为设备序列号，用于摄像头频道号
-    uint8_t mac[6];
-    WiFi.macAddress(mac);
-    char macStr[12] = {0};
-    sprintf(macStr, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3],
-            mac[4], mac[5]);
-    Serial.println("sprint mac ");
-    streamSender.beginPacket(host, serverUdpPort);
-    streamSender.print(String(macStr));
-    streamSender.endPacket();
+    streamSender.setServer(host, serverUdpPort);
 }
 
 void loop() {
     camera_fb_t* fb = NULL;
     size_t len = 0;
     Serial.println("do loop");
+
     while (true) {
         fb = esp_camera_fb_get();
         if (!fb) {
@@ -104,13 +95,7 @@ void loop() {
             return;
         }
         len = fb->len;
-        streamSender.beginPacket(host, serverUdpPort);
-        streamSender.write(fb->buf, len);
-        streamSender.endPacket();
-        // 这个库会自动将大于MTU的帧拆成多帧，而不是利用自动ip分片，
-        // 导致服务器端需要合并帧，此处发送空包标识结束
-        streamSender.beginPacket(host, serverUdpPort);
-        streamSender.endPacket();
+        streamSender.send(fb->buf, len);
         esp_camera_fb_return(fb);
     }
 }

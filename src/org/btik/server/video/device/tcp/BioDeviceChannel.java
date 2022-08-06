@@ -1,10 +1,10 @@
 package org.btik.server.video.device.tcp;
 
 
-import org.btik.server.DevChannel;
+import org.btik.server.video.device.iface.DevChannel;
 import org.btik.server.VideoServer;
-import org.btik.server.video.AsyncTaskExecutor;
-import org.btik.server.video.VideoChannel;
+import org.btik.server.video.device.task.AsyncTaskExecutor;
+import org.btik.server.video.device.iface.VideoChannel;
 
 
 import java.io.IOException;

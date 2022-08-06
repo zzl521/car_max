@@ -1,4 +1,4 @@
-package org.btik.server.video;
+package org.btik.server.video.device.task;
 
 import java.util.concurrent.LinkedBlockingQueue;
 

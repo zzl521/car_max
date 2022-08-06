@@ -1,4 +1,4 @@
-package org.btik.server;
+package org.btik.server.video.device.iface;
 
 /**
  * 设备通道

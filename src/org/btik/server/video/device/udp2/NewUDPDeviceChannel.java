@@ -1,23 +1,22 @@
-package org.btik.server.video.device.udp;
+package org.btik.server.video.device.udp2;
 
-import org.btik.server.video.device.iface.DevChannel;
 import org.btik.server.VideoServer;
 import org.btik.server.util.ByteUtil;
 import org.btik.server.util.NamePrefixThreadFactory;
-import org.btik.server.video.device.task.AsyncTaskExecutor;
+import org.btik.server.video.device.iface.DevChannel;
 import org.btik.server.video.device.iface.VideoChannel;
+import org.btik.server.video.device.task.AsyncTaskExecutor;
+
 
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.HashMap;
 import java.util.concurrent.*;
 
+public class NewUDPDeviceChannel extends Thread implements DevChannel {
 
-/**
- * 发送帧设备接入通道
- */
-public class UDPDeviceChannel extends Thread implements DevChannel {
     private static final int SN_LEN = 16;
     private volatile boolean runFlag = true;
 
@@ -27,8 +26,6 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
     private int streamPort;
 
     private VideoServer videoServer;
-
-    private AsyncTaskExecutor asyncTaskExecutor;
 
     private ExecutorService executorService;
 
@@ -50,10 +47,6 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
         this.videoServer = videoServer;
     }
 
-    public void setAsyncTaskExecutor(AsyncTaskExecutor asyncTaskExecutor) {
-        this.asyncTaskExecutor = asyncTaskExecutor;
-    }
-
     public void setBufferPool(BufferPool bufferPool) {
         this.bufferPool = bufferPool;
     }
@@ -70,13 +63,12 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
     }
 
 
-    private final ConcurrentHashMap<Long, UDPDev> devMap = new ConcurrentHashMap<>();
+    private final HashMap<Long, VideoChannel> videoChannelMap = new HashMap<>();
 
 
     @Override
     public synchronized void start() {
         System.out.println("init buffer pool");
-
 
         System.out.println("start dispatchers");
         frameDispatchers = new FrameDispatcher[dispatcherPoolSize];
@@ -96,17 +88,17 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
     public void run() {
 
         try (DatagramSocket serverSocket = new DatagramSocket(streamPort)) {
-            FrameSegmentBuffer frameSegmentBuffer = bufferPool.getFrameBuffer();
-            DatagramPacket datagramPacket = new DatagramPacket(frameSegmentBuffer.data, 0, frameSegmentBuffer.data.length);
+            FrameBuffer frameBuffer = bufferPool.getFrameBuffer();
+            DatagramPacket datagramPacket = new DatagramPacket(frameBuffer.data, 0, frameBuffer.data.length);
             while (runFlag) {
                 serverSocket.receive(datagramPacket);
                 InetAddress address = datagramPacket.getAddress();
-                frameSegmentBuffer.address = (long) address.hashCode() << 16 | datagramPacket.getPort();
-                frameSegmentBuffer.size = datagramPacket.getLength();
-                frameDispatchers[(int) (frameSegmentBuffer.address & dispatcherPoolSize - 1)].messages.add(frameSegmentBuffer);
+                frameBuffer.address = (long) address.hashCode() << 16 | datagramPacket.getPort();
+                frameBuffer.size = datagramPacket.getLength();
+                frameDispatchers[(int) (frameBuffer.address & dispatcherPoolSize - 1)].messages.add(frameBuffer);
                 // 切换缓冲区
-                frameSegmentBuffer = bufferPool.getFrameBuffer();
-                datagramPacket.setData(frameSegmentBuffer.data);
+                frameBuffer = bufferPool.getFrameBuffer();
+                datagramPacket.setData(frameBuffer.data);
             }
         } catch (IOException e) {
             System.out.println(" start server failed:" + e.getMessage());
@@ -117,7 +109,7 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
         runFlag = false;
         // 无消息导致阻塞时，没有读到flag,帮助退出阻塞
         for (FrameDispatcher frameDispatcher : frameDispatchers) {
-            frameDispatcher.messages.add(new FrameSegmentBuffer(new byte[0]));
+            frameDispatcher.messages.add(new FrameBuffer(new byte[0]));
         }
         // 线程池核心线程也需要停止
         executorService.shutdown();
@@ -131,7 +123,7 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
 
 
     static class UDPDev {
-        byte[][] frame;
+        byte[] frame;
 
         int[] sizeTable;
         VideoChannel videoChannel;
@@ -141,7 +133,7 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
 
         int segmentIndex = 0;
 
-        public UDPDev(byte[][] frame, VideoChannel videoChannel, BufferPool bufferPool, long address) {
+        public UDPDev(byte[] frame, VideoChannel videoChannel, BufferPool bufferPool, long address) {
             this.frame = frame;
             this.sizeTable = new int[frame.length];
             this.videoChannel = videoChannel;
@@ -149,56 +141,23 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
             this.bufferPool = bufferPool;
         }
 
-        public void appendSegment(FrameSegmentBuffer frameSegmentBuffer) {
 
-            int size = frameSegmentBuffer.size;
-            // 判断结束标识
-            if (size == 0) {
-                videoChannel.sendFrame(frame, sizeTable, segmentIndex + 1);
-                free();
-            } else {
-                try {
-                    sizeTable[segmentIndex] = size;
-                } catch (IndexOutOfBoundsException e) {
-                    e.printStackTrace();
-                    // 将指针复位，防止累积后持续越界
-                    free();
-                    return;
-                }
-
-                byte[] data = frameSegmentBuffer.data;
-                frame[segmentIndex++] = data;
-                // 被帧空间指向后,为帧片段重新分配内存
-                frameSegmentBuffer.data = bufferPool.getBuffer();
-            }
-
-        }
-
-        void free() {
-            for (int i = 0; i < segmentIndex; i++) {
-                bufferPool.returnBufferData(frame[i]);
-                frame[i] = null;
-                sizeTable[i] = 0;
-            }
-            segmentIndex = 0;
-        }
     }
 
     class FrameDispatcher implements Runnable {
-        LinkedBlockingQueue<FrameSegmentBuffer> messages = new LinkedBlockingQueue<>();
+        LinkedBlockingQueue<FrameBuffer> messages = new LinkedBlockingQueue<>();
 
         @Override
         public void run() {
 
             try {
                 while (runFlag) {
-                    long l = System.currentTimeMillis();
-                    FrameSegmentBuffer segment = messages.take();
+                    FrameBuffer segment = messages.take();
                     try {
                         long address = segment.address;
-                        UDPDev dev = devMap.get(address);
-                        if (dev != null) {
-                            dev.appendSegment(segment);
+                        VideoChannel videoChannel = videoChannelMap.get(address);
+                        if (videoChannel != null) {
+                            videoChannel.sendFrame(segment.data, segment.size);
                         } else {
                             onNewStreamOpen(segment);
                         }
@@ -211,7 +170,6 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
                     } finally {
                         // 归还到池里
                         bufferPool.returnBuffer(segment);
-
                     }
 
                 }
@@ -224,11 +182,12 @@ public class UDPDeviceChannel extends Thread implements DevChannel {
 
     }
 
-    private void onNewStreamOpen(FrameSegmentBuffer frame) {
+    private void onNewStreamOpen(FrameBuffer frame) {
         byte[] sn = new byte[SN_LEN + 1];
         System.arraycopy(ByteUtil.toHexString(frame.address), 0, sn, 1, SN_LEN);
         VideoChannel channel = videoServer.createChannel(sn);
-        devMap.put(frame.address, new UDPDev(new byte[200][], channel, bufferPool, frame.address));
+        videoChannelMap.put(frame.address, channel);
     }
+
 
 }
