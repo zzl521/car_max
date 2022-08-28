@@ -1,1 +1,1 @@
-./jre/bin/java -classpath SimpleVideoServer org.btik.server.video.UDPMain
+./jre/bin/java -classpath SimpleVideoServer org.btik.server.video.UDP2Main
