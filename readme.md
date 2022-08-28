@@ -13,36 +13,39 @@ S -->|mjpeg视频流|B
 ```
 
 本项目提供了，服务端代码与esp32cam的代码。
-> 当前分支的代码是UDP第二个版本，速度比TCP分支更快，稳定性相比第一个UDP版本更高，为了速度，放弃了大于64K以上包，因而高分辨率的视频是不能显示的。如果希望使用tcp版本可以切换到tcp分支，在较大分辨率时如同ppt，而udp-channel版本比当前版本支持分辨率更高，但稳定性差。如果烧录当前版本，需要搭配当前版本的服务端代码使用，暂时需要自行编译。发现版的服务器中仅仅支持tcp。
+
+`simpleVideoRecorder`目录下载为esp32cam的代码。
 
 
 ## 运行服务端
 
 根据自己需要选择以下任意方式运行服务端
 
-* 下载 [windows服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/92abc011e3048b9401a204b4255c0a56/SimpleVideoSever_win.zip)
+* 下载 [windows服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/bcafcb53130a277f3b6f92f8c83249a7/win_release.zip)
 
   解压之后，进入对应目录点击run.bat文件启动服务器。
 
-* 下载[linux服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/f6b8ffccef4cd8f271c0667a22c53fc3/SimpleVideoSever_linux.zip)
+* 下载[linux服务端发行版](https://gitcode.net/qq_26700087/simpleVideoServer/uploads/83402dcffb269aac326a2f5649ef6970/linux_release.tar.gz)
 
   需要unzip或p7z等可以解压zip的应用
 
   运行
 
   ```shell
-  unzip SimpleVideoSever_linux.zip
+  tar -zxvf linux_release.tar.gz
   cd linux_release/
   sh run.sh
   ```
 
-* 发行版内部仅仅是一些java17 版本的class文件和jre以及启动脚本，你可以使用任意其它的jre17运行这些class文件。并非需要发行版。
+* 发行版内部仅仅是一些java17 版本的class文件和jre以及启动脚本，你也可以使用任意其它的jre17运行这些class文件。并非需要发行版。
+
+  > 比如你希望在macos运行当前服务端时，将macos的jdk17或者jre17复制到linux发行版的目录中，替代其jre目录，参考run.sh中命令调用jre下java运行服务端。
 
 * 访问视频服务
 
-  新增了频道功能，也就是说每个摄像头处在不同频道，访问不同的摄像头需要不同的地址。
+  每个摄像头处在不同频道，访问不同的摄像头需要不同的地址。
 
-  
+  但这个版本没有测试多频道，只能说理论上没有问题。
 
   如鄙人执行的服务端日志打印含有esp32Cam接入的后的相关打印如下：
 
