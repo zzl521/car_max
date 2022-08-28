@@ -28,8 +28,6 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
 
     private final Set<Socket> clients = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
-    private final byte[] clientLock = new byte[0];
-
     public MJPEGVideoChannel(String channelId, AsyncTaskExecutor asyncTaskExecutor) {
         this.asyncTaskExecutor = asyncTaskExecutor;
         this.channelId = channelId;
@@ -40,23 +38,21 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
     public void sendFrame(byte[] frame, int len) {
         byte[] lenStrBytes = ByteUtil.toString(len);
         byte[] lenHexStrBytes = ByteUtil.toHexString(len);
-        synchronized (clientLock) {
-            for (Socket client : clients) {
-                try {
-                    OutputStream outputStream = client.getOutputStream();
-                    sendChunk(_STREAM_BOUNDARY, outputStream);
-                    sendChunk(outputStream, _STREAM_PART, lenStrBytes, DOUBLE_LINE);
-                    sendChunk(frame, len, lenHexStrBytes, outputStream);
-                    outputStream.flush();
-                } catch (IOException e) {
-                    checkState(client, e);
-                }
 
+        for (Socket client : clients) {
+            try {
+                OutputStream outputStream = client.getOutputStream();
+                sendChunk(_STREAM_BOUNDARY, outputStream);
+                sendChunk(outputStream, _STREAM_PART, lenStrBytes, DOUBLE_LINE);
+                sendChunk(frame, len, lenHexStrBytes, outputStream);
+                outputStream.flush();
+            } catch (IOException e) {
+                checkState(client, e);
             }
-        }
-    }
 
-    static long l = System.currentTimeMillis();
+        }
+
+    }
 
     @Override
     public void sendFrame(byte[][] frame, int[] len, int segmentCount) {
@@ -65,20 +61,20 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
             allLen += len[i];
         }
         byte[] lenStrBytes = ByteUtil.toString(allLen);
-        synchronized (clientLock) {
-            for (Socket client : clients) {
-                try {
-                    OutputStream outputStream = client.getOutputStream();
-                    sendChunk(_STREAM_BOUNDARY, outputStream);
-                    sendChunk(outputStream, _STREAM_PART, lenStrBytes, DOUBLE_LINE);
-                    sendChunk(outputStream, allLen, len, frame);
-                    outputStream.flush();
-                } catch (IOException e) {
-                    checkState(client, e);
-                }
 
+        for (Socket client : clients) {
+            try {
+                OutputStream outputStream = client.getOutputStream();
+                sendChunk(_STREAM_BOUNDARY, outputStream);
+                sendChunk(outputStream, _STREAM_PART, lenStrBytes, DOUBLE_LINE);
+                sendChunk(outputStream, allLen, len, frame);
+                outputStream.flush();
+            } catch (IOException e) {
+                checkState(client, e);
             }
+
         }
+
     }
 
     /**
@@ -151,6 +147,7 @@ public class MJPEGVideoChannel implements VideoChannel, HttpConstant {
             try {
                 System.err.println("close:" + socket.getRemoteSocketAddress());
                 socket.close();
+                clients.remove(socket);
             } catch (IOException e0) {
                 System.err.println(e.getMessage());
             }

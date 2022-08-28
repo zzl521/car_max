@@ -1,7 +1,5 @@
 package org.btik.server.util;
 
-import java.io.IOException;
-
 /**
  * @author lustre
  * @version 1.0
