@@ -41,6 +41,8 @@ S -->|mjpeg视频流|B
 
   > 比如你希望在macos运行当前服务端时，将macos的jdk17或者jre17复制到linux发行版的目录中，替代其jre目录，参考run.sh中命令调用jre下java运行服务端。
 
+* [全部发行版](https://gitcode.net/qq_26700087/simpleVideoServer/-/releases?spm=1033.2243.3001.5877)
+
 * 访问视频服务
 
   每个摄像头处在不同频道，访问不同的摄像头需要不同的地址。
